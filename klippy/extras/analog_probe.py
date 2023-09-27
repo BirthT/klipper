@@ -23,8 +23,9 @@ class AnalogProbe:
         self.samples_retries = config.getint('samples_tolerance_retries', 0,
                                              minval=0)
         # Register z_virtual_endstop pin
-        #TODO register_chipをs変更する
-        self.printer.lookup_object('pins').register_chip('probe', self)
+        #TODO register_chipを変更する
+        self.printer.lookup_object('pins').register_chip('analog_probe', self)
+
         # Register homing event handlers
         self.printer.register_event_handler("homing:homing_move_begin",
                                             self._handle_homing_move_begin)
@@ -38,17 +39,17 @@ class AnalogProbe:
                                             self._handle_command_error)
         # Register PROBE/QUERY_PROBE commands
         self.gcode = self.printer.lookup_object('gcode')
-        self.gcode.register_command('PROBE', self.cmd_PROBE,
-                                    desc=self.cmd_PROBE_help)
-        self.gcode.register_command('QUERY_PROBE', self.cmd_QUERY_PROBE,
-                                    desc=self.cmd_QUERY_PROBE_help)
-        self.gcode.register_command('PROBE_CALIBRATE', self.cmd_PROBE_CALIBRATE,
-                                    desc=self.cmd_PROBE_CALIBRATE_help)
-        self.gcode.register_command('PROBE_ACCURACY', self.cmd_PROBE_ACCURACY,
-                                    desc=self.cmd_PROBE_ACCURACY_help)
-        self.gcode.register_command('Z_OFFSET_APPLY_PROBE',
-                                    self.cmd_Z_OFFSET_APPLY_PROBE,
-                                    desc=self.cmd_Z_OFFSET_APPLY_PROBE_help)
+        #self.gcode.register_command('PROBE', self.cmd_PROBE,
+        #                            desc=self.cmd_PROBE_help)
+        #self.gcode.register_command('QUERY_PROBE', self.cmd_QUERY_PROBE,
+        #                            desc=self.cmd_QUERY_PROBE_help)
+        #self.gcode.register_command('PROBE_CALIBRATE', self.cmd_PROBE_CALIBRATE,
+        #                            desc=self.cmd_PROBE_CALIBRATE_help)
+        #self.gcode.register_command('PROBE_ACCURACY', self.cmd_PROBE_ACCURACY,
+        #                            desc=self.cmd_PROBE_ACCURACY_help)
+        #self.gcode.register_command('Z_OFFSET_APPLY_PROBE',
+        #                            self.cmd_Z_OFFSET_APPLY_PROBE,
+        #                            desc=self.cmd_Z_OFFSET_APPLY_PROBE_help)
     def _handle_homing_move_begin(self, hmove):
         if self.mcu_probe in hmove.get_mcu_endstops():
             self.mcu_probe.probe_prepare(hmove)
@@ -76,99 +77,10 @@ class AnalogProbe:
         pass
     def run_probe(self, gcmd):
         pass
-    cmd_PROBE_help = "Probe Z-height at current XY position"
-    def cmd_PROBE(self, gcmd):
-        pass
-    cmd_QUERY_PROBE_help = "Return the status of the z-probe"
-    def cmd_QUERY_PROBE(self, gcmd):
-        pass
     def get_status(self, eventtime):
         return {'name': self.name,
                 'last_query': self.last_state,
                 'last_z_result': self.last_z_result}
-    cmd_PROBE_ACCURACY_help = "Probe Z-height accuracy at current XY position"
-    def cmd_PROBE_ACCURACY(self, gcmd):
-        speed = gcmd.get_float("PROBE_SPEED", self.speed, above=0.)
-        lift_speed = self.get_lift_speed(gcmd)
-        sample_count = gcmd.get_int("SAMPLES", 10, minval=1)
-        sample_retract_dist = gcmd.get_float("SAMPLE_RETRACT_DIST",
-                                             self.sample_retract_dist, above=0.)
-        toolhead = self.printer.lookup_object('toolhead')
-        pos = toolhead.get_position()
-        gcmd.respond_info("PROBE_ACCURACY at X:%.3f Y:%.3f Z:%.3f"
-                          " (samples=%d retract=%.3f"
-                          " speed=%.1f lift_speed=%.1f)\n"
-                          % (pos[0], pos[1], pos[2],
-                             sample_count, sample_retract_dist,
-                             speed, lift_speed))
-        # Probe bed sample_count times
-        self.multi_probe_begin()
-        positions = []
-        while len(positions) < sample_count:
-            # Probe position
-            pos = self._probe(speed)
-            positions.append(pos)
-            # Retract
-            liftpos = [None, None, pos[2] + sample_retract_dist]
-            self._move(liftpos, lift_speed)
-        self.multi_probe_end()
-        # Calculate maximum, minimum and average values
-        max_value = max([p[2] for p in positions])
-        min_value = min([p[2] for p in positions])
-        range_value = max_value - min_value
-        avg_value = self._calc_mean(positions)[2]
-        median = self._calc_median(positions)[2]
-        # calculate the standard deviation
-        deviation_sum = 0
-        for i in range(len(positions)):
-            deviation_sum += pow(positions[i][2] - avg_value, 2.)
-        sigma = (deviation_sum / len(positions)) ** 0.5
-        # Show information
-        gcmd.respond_info(
-            "probe accuracy results: maximum %.6f, minimum %.6f, range %.6f, "
-            "average %.6f, median %.6f, standard deviation %.6f" % (
-            max_value, min_value, range_value, avg_value, median, sigma))
-    def probe_calibrate_finalize(self, kin_pos):
-        if kin_pos is None:
-            return
-        z_offset = self.probe_calibrate_z - kin_pos[2]
-        self.gcode.respond_info(
-            "%s: z_offset: %.3f\n"
-            "The SAVE_CONFIG command will update the printer config file\n"
-            "with the above and restart the printer." % (self.name, z_offset))
-        configfile = self.printer.lookup_object('configfile')
-        configfile.set(self.name, 'z_offset', "%.3f" % (z_offset,))
-    cmd_PROBE_CALIBRATE_help = "Calibrate the probe's z_offset"
-    def cmd_PROBE_CALIBRATE(self, gcmd):
-        manual_probe.verify_no_manual_probe(self.printer)
-        # Perform initial probe
-        lift_speed = self.get_lift_speed(gcmd)
-        curpos = self.run_probe(gcmd)
-        # Move away from the bed
-        self.probe_calibrate_z = curpos[2]
-        curpos[2] += 5.
-        self._move(curpos, lift_speed)
-        # Move the nozzle over the probe point
-        curpos[0] += self.x_offset
-        curpos[1] += self.y_offset
-        self._move(curpos, self.speed)
-        # Start manual probe
-        manual_probe.ManualProbeHelper(self.printer, gcmd,
-                                       self.probe_calibrate_finalize)
-    def cmd_Z_OFFSET_APPLY_PROBE(self,gcmd):
-        offset = self.gcode_move.get_status()['homing_origin'].z
-        configfile = self.printer.lookup_object('configfile')
-        if offset == 0:
-            self.gcode.respond_info("Nothing to do: Z Offset is 0")
-        else:
-            new_calibrate = self.z_offset - offset
-            self.gcode.respond_info(
-                "%s: z_offset: %.3f\n"
-                "The SAVE_CONFIG command will update the printer config file\n"
-                "with the above and restart the printer."
-                % (self.name, new_calibrate))
-            configfile.set(self.name, 'z_offset', "%.3f" % (new_calibrate,))
-    cmd_Z_OFFSET_APPLY_PROBE_help = "Adjust the probe's z_offset"
 
 # Endstop wrapper
 class AnalogProbeEndstopWrapper:
