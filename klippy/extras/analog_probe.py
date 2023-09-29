@@ -50,6 +50,8 @@ class AnalogProbe:
         #self.gcode.register_command('Z_OFFSET_APPLY_PROBE',
         #                            self.cmd_Z_OFFSET_APPLY_PROBE,
         #                            desc=self.cmd_Z_OFFSET_APPLY_PROBE_help)
+        self.gcode.register_command('QUERY_ANALOG_PROBE', self.cmd_QUERY_ANALOG_PROBE,
+                                    desc=self.cmd_QUERY_ANALOG_PROBE_help)
     def _handle_homing_move_begin(self, hmove):
         if self.mcu_probe in hmove.get_mcu_endstops():
             self.mcu_probe.probe_prepare(hmove)
@@ -62,10 +64,6 @@ class AnalogProbe:
         if pin_params['invert'] or pin_params['pullup']:
             raise pins.error("Can not pullup/invert probe virtual endstop")
         return self.mcu_probe
-    def get_lift_speed(self, gcmd=None):
-        if gcmd is not None:
-            return gcmd.get_float("LIFT_SPEED", self.lift_speed, above=0.)
-        return self.lift_speed
     def _probe(self, speed):
         pass
         return 0
@@ -81,6 +79,11 @@ class AnalogProbe:
         return {'name': self.name,
                 'last_query': self.last_state,
                 'last_z_result': self.last_z_result}
+    
+    cmd_QUERY_ANALOG_PROBE_help = "Get Analog Probe value"
+    def cmd_QUERY_ANALOG_PROBE(self,gcmd):
+        value = self.mcu_probe.get_value
+        gcmd.respond_info("analog probe: %f" % (value,))
 
 # Endstop wrapper
 class AnalogProbeEndstopWrapper:
@@ -96,13 +99,18 @@ class AnalogProbeEndstopWrapper:
         self.deactivate_gcode = gcode_macro.load_template(
             config, 'deactivate_gcode', '')
 
+        self.min_adc = config.getfloat('min_adc', -9999999.9,
+                                        minval=-9999999.9)
+        self.max_adc = config.getfloat('max_adc', 99999999.9,
+                                        above=self.min_temp)
+
         # endstop用のADCを定義する
         ppins = self.printer.lookup_object('pins')
         pin = config.get('pin')
         pin_params = ppins.lookup_pin(pin, can_invert=False, can_pullup=False)
         mcu = pin_params['chip']
-        self.mcu_endstop = mcu.setup_pin('endstop', pin_params)
-        # = ppins.setup_pin('endstop', pin)
+        self.mcu_endstop = mcu.setup_pin('adc', pin_params)
+        self.mcu_endstop.setup_minmax(self.min_adc, self.max_adc)
 
         self.printer.register_event_handler('klippy:mcu_identify',
                                             self._handle_mcu_identify)
@@ -113,8 +121,23 @@ class AnalogProbeEndstopWrapper:
         self.home_start = self.mcu_endstop.home_start
         self.home_wait = self.mcu_endstop.home_wait
         self.query_endstop = self.mcu_endstop.query_endstop
-        # multi probes state
-        self.multi = 'OFF'
+    
+    def get_value(self):
+        return self.mcu_endstop.get_last_value()
+    
+    def get_mcu(self):
+        return self.mcu
+    def add_stepper(self):
+        pass
+    def get_steppers(self):
+        pass
+    def home_start(self):
+        pass
+    def home_wait(self):
+        pass
+    def query_endstop(self):
+        pass
+
     def _handle_mcu_identify(self):
         kin = self.printer.lookup_object('toolhead').get_kinematics()
         for stepper in kin.get_steppers():
@@ -134,28 +157,11 @@ class AnalogProbeEndstopWrapper:
         if toolhead.get_position()[:3] != start_pos[:3]:
             raise self.printer.command_error(
                 "Toolhead moved during probe deactivate_gcode script")
-    #def multi_probe_begin(self):
-    #    if self.stow_on_each_sample:
-    #        return
-    #    self.multi = 'FIRST'
-    #def multi_probe_end(self):
-    #    if self.stow_on_each_sample:
-    #        return
-    #    self.raise_probe()
-    #    self.multi = 'OFF'
-    def probe_prepare(self, hmove):
-        if self.multi == 'OFF' or self.multi == 'FIRST':
-            self.lower_probe()
-            if self.multi == 'FIRST':
-                self.multi = 'ON'
-    def probe_finish(self, hmove):
-        if self.multi == 'OFF':
-            self.raise_probe()
     def get_position_endstop(self):
         return self.position_endstop
 
 def load_config(config):
     ap=AnalogProbeEndstopWrapper(config)
-    #TODO 別名でs保存する
+    #TODO 別名で保存する
     config.get_printer().add_object('probe', AnalogProbe(config, ap))
     return ap
