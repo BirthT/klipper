@@ -77,12 +77,11 @@ class AnalogProbe:
         pass
     def get_status(self, eventtime):
         return {'name': self.name,
-                'last_query': self.last_state,
-                'last_z_result': self.last_z_result}
+                'last_query': self.last_state}
     
     cmd_QUERY_ANALOG_PROBE_help = "Get Analog Probe value"
     def cmd_QUERY_ANALOG_PROBE(self,gcmd):
-        value = self.mcu_probe.get_value
+        value = self.mcu_probe.get_value()
         gcmd.respond_info("analog probe: %f" % (value,))
 
 # Endstop wrapper
