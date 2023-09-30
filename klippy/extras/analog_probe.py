@@ -200,5 +200,5 @@ class AnalogProbeEndstopWrapper:
 def load_config(config):
     ap=AnalogProbeEndstopWrapper(config)
     #TODO 別名で保存する
-    config.get_printer().add_object('probe', AnalogProbe(config, ap))
+    config.get_printer().add_object('analog_probe', AnalogProbe(config, ap))
     return ap
