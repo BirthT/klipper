@@ -168,7 +168,7 @@ class AnalogProbeEndstopWrapper:
         pass
     def home_wait(self):
         pass
-    def query_endstop(self):
+    def query_endstop(self, print_time):
         read_val = self.read_val()
         params = 0 #default open
         if  read_val < self.endstop_trigger: #trigered
