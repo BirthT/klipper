@@ -123,8 +123,8 @@ class AnalogProbeEndstopWrapper:
         self._trdispatch = ffi_main.gc(ffi_lib.trdispatch_alloc(), ffi_lib.free)
         self._trsyncs = [MCU_trsync(mcu, self._trdispatch)]
 
-        #self.printer.register_event_handler('klippy:mcu_identify',
-        #                                    self._handle_mcu_identify)
+        self.printer.register_event_handler('klippy:mcu_identify',
+                                            self._handle_mcu_identify)
         # Wrappers
         #self.get_mcu = self.mcu_endstop.get_mcu
         #self.add_stepper = self.mcu_endstop.add_stepper
@@ -178,7 +178,7 @@ class AnalogProbeEndstopWrapper:
     def _handle_mcu_identify(self):
         kin = self.printer.lookup_object('toolhead').get_kinematics()
         for stepper in kin.get_steppers():
-            if stepper.is_active_axis('z'):
+            if stepper.is_active_axis('y'):
                 self.add_stepper(stepper)
     def raise_probe(self):
         toolhead = self.printer.lookup_object('toolhead')
