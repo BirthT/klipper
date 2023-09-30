@@ -1,4 +1,6 @@
 import logging
+import chelper
+from mcu import MCU, MCU_trsync
 import pins
 from . import manual_probe
 
@@ -102,6 +104,7 @@ class AnalogProbeEndstopWrapper:
                                         minval=-9999999.9)
         self.max_adc = config.getfloat('max_adc', 99999999.9,
                                         above=self.min_adc)
+        self.endstop_trigger = config.getfloat('endstop_trigger', 0.5)
 
         # endstop用のADCを定義する
         ppins = self.printer.lookup_object('pins')
@@ -116,6 +119,10 @@ class AnalogProbeEndstopWrapper:
         self.mcu_endstop.setup_minmax(ADC_SAMPLE_TIME, ADC_SAMPLE_COUNT)
         self.mcu_endstop.setup_adc_callback(ADC_REPORT_TIME, self.adc_callback)
 
+        ffi_main, ffi_lib = chelper.get_ffi()
+        self._trdispatch = ffi_main.gc(ffi_lib.trdispatch_alloc(), ffi_lib.free)
+        self._trsyncs = [MCU_trsync(mcu, self._trdispatch)]
+
         #self.printer.register_event_handler('klippy:mcu_identify',
         #                                    self._handle_mcu_identify)
         # Wrappers
@@ -128,6 +135,10 @@ class AnalogProbeEndstopWrapper:
     
     def get_value(self):
         return self.mcu_endstop.get_last_value()
+    
+    def read_value(self):
+        (_v, _t) = self.mcu_endstop.get_last_value()
+        return _v
 
     def adc_callback(self, read_time, read_value):
         # read sensor value
@@ -135,16 +146,34 @@ class AnalogProbeEndstopWrapper:
     
     def get_mcu(self):
         return self.mcu
-    def add_stepper(self):
-        pass
+    def add_stepper(self, stepper):
+        trsyncs = {trsync.get_mcu(): trsync for trsync in self._trsyncs}
+        trsync = trsyncs.get(stepper.get_mcu())
+        if trsync is None:
+            trsync = MCU_trsync(stepper.get_mcu(), self._trdispatch)
+            self._trsyncs.append(trsync)
+        trsync.add_stepper(stepper)
+        # Check for unsupported multi-mcu shared stepper rails
+        sname = stepper.get_name()
+        if sname.startswith('stepper_'):
+            for ot in self._trsyncs:
+                for s in ot.get_steppers():
+                    if ot is not trsync and s.get_name().startswith(sname[:9]):
+                        cerror = self.mcu.get_printer().config_error
+                        raise cerror("Multi-mcu homing not supported on"
+                                     " multi-mcu shared axis")
     def get_steppers(self):
-        pass
+        return [s for trsync in self._trsyncs for s in trsync.get_steppers()]    
     def home_start(self):
         pass
     def home_wait(self):
         pass
     def query_endstop(self):
-        pass
+        read_val = self.read_val()
+        params = 0 #default open
+        if  read_val < self.endstop_trigger: #trigered
+           params=1
+        return params
 
     def _handle_mcu_identify(self):
         kin = self.printer.lookup_object('toolhead').get_kinematics()
