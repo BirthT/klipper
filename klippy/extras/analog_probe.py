@@ -111,8 +111,8 @@ class AnalogProbeEndstopWrapper:
         self.mcu_endstop = mcu.setup_pin('adc', pin_params)
         self.mcu_endstop.setup_minmax(self.min_adc, self.max_adc)
 
-        self.printer.register_event_handler('klippy:mcu_identify',
-                                            self._handle_mcu_identify)
+        #self.printer.register_event_handler('klippy:mcu_identify',
+        #                                    self._handle_mcu_identify)
         # Wrappers
         #self.get_mcu = self.mcu_endstop.get_mcu
         #self.add_stepper = self.mcu_endstop.add_stepper
