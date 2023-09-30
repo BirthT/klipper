@@ -116,6 +116,8 @@ class AnalogProbeEndstopWrapper:
         self.mcu = pin_params['chip']
         self.mcu_endstop = self.mcu.setup_pin('adc', pin_params)
 
+        self.mcu.register_config_callback(self.build_config)
+
         self.oid = self.mcu.create_oid()
 
         ADC_SAMPLE_TIME = 0.001
@@ -135,11 +137,6 @@ class AnalogProbeEndstopWrapper:
         self.printer.register_event_handler('klippy:mcu_identify',
                                             self._handle_mcu_identify)
 
-        cmd_queue = self._trsyncs[0].get_command_queue()
-        self._home_cmd = self.mcu.lookup_command(
-            "analog_endstop_home oid=%c clock=%u sample_ticks=%u sample_count=%c"
-            " rest_ticks=%u pin_value=%c trsync_oid=%c trigger_reason=%c tirgger_val=%u",
-            cq=cmd_queue)
 
 
         # Wrappers
@@ -150,7 +147,18 @@ class AnalogProbeEndstopWrapper:
         #self.home_wait = self.mcu_endstop.home_wait
         #self.query_endstop = self.mcu_endstop.query_endstop
     
-    
+    def build_config(self):
+        self.mcu.add_config_cmd(
+            "analog_endstop_home oid=%d clock=0 sample_ticks=0 sample_count=0"
+            " rest_ticks=0 pin_value=0 trsync_oid=0 trigger_reason=0 trigger_val=0"
+            % (self.oid,), on_restart=True)
+
+        cmd_queue = self._trsyncs[0].get_command_queue()
+        self._home_cmd = self.mcu.lookup_command(
+            "analog_endstop_home oid=%c clock=%u sample_ticks=%u sample_count=%c"
+            " rest_ticks=%u pin_value=%c trsync_oid=%c trigger_reason=%c tirgger_val=%u",
+            cq=cmd_queue)
+        
     def get_value(self):
         return self.mcu_endstop.get_last_value()
     
