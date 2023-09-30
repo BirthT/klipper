@@ -22,7 +22,7 @@ struct endstop {
     uint32_t rest_time, sample_time, nextwake;
     struct trsync *ts;
     uint8_t flags, sample_count, trigger_count, trigger_reason;
-    uint_16_t trigger_val;
+    uint16_t trigger_val;
 };
 
 enum { ESF_PIN_HIGH=1<<0, ESF_HOMING=1<<1 };
@@ -207,7 +207,7 @@ void
 command_analog_endstop_home(uint32_t *args)
 {
     //struct endstop *e = oid_lookup(args[0], command_config_BDendstop);
-    endtime_adjust=0;
+    //endtime_adjust=0;
     sched_del_timer(&e.time);
     e.time.waketime = args[1];
     e.sample_time = args[2];
