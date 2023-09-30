@@ -110,10 +110,11 @@ class AnalogProbeEndstopWrapper:
         mcu = pin_params['chip']
         self.mcu_endstop = mcu.setup_pin('adc', pin_params)
 
-        SAMPLE_TIME = 0.001
-        SAMPLE_COUNT = 8
-        self.mcu_endstop.setup_minmax(SAMPLE_TIME, SAMPLE_COUNT,
-            minval=self.min_adc, maxval=self.max_adc)
+        ADC_SAMPLE_TIME = 0.001
+        ADC_SAMPLE_COUNT = 8
+        ADC_REPORT_TIME = 0.500
+        self.mcu_endstop.setup_minmax(ADC_SAMPLE_TIME, ADC_SAMPLE_COUNT)
+        self.mcu_endstop.setup_adc_callback(ADC_REPORT_TIME, self.adc_callback)
 
         #self.printer.register_event_handler('klippy:mcu_identify',
         #                                    self._handle_mcu_identify)
@@ -127,6 +128,10 @@ class AnalogProbeEndstopWrapper:
     
     def get_value(self):
         return self.mcu_endstop.get_last_value()
+
+    def adc_callback(self, read_time, read_value):
+        # read sensor value
+        pass
     
     def get_mcu(self):
         return self.mcu
