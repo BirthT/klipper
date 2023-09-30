@@ -127,7 +127,7 @@ class AnalogProbeEndstopWrapper:
         self.mcu_endstop.setup_adc_callback(ADC_REPORT_TIME, self.adc_callback)
 
 
-        max_adc = 8.0 * 4095
+        max_adc = 4095
         self.real_trigger_val = int(self.endstop_trigger * max_adc)
 
         ffi_main, ffi_lib = chelper.get_ffi()
@@ -156,7 +156,7 @@ class AnalogProbeEndstopWrapper:
         cmd_queue = self._trsyncs[0].get_command_queue()
         self._home_cmd = self.mcu.lookup_command(
             "analog_endstop_home oid=%c clock=%u sample_ticks=%u sample_count=%c"
-            " rest_ticks=%u pin_value=%c trsync_oid=%c trigger_reason=%c tirgger_val=%u",
+            " rest_ticks=%u pin_value=%c trsync_oid=%c trigger_reason=%c trigger_val=%u",
             cq=cmd_queue)
         
     def get_value(self):
