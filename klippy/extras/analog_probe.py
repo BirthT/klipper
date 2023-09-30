@@ -82,7 +82,7 @@ class AnalogProbe:
     cmd_QUERY_ANALOG_PROBE_help = "Get Analog Probe value"
     def cmd_QUERY_ANALOG_PROBE(self,gcmd):
         value = self.mcu_probe.get_value()
-        gcmd.respond_info("analog probe: %f" % (value,))
+        gcmd.respond_info("analog probe: %f" % (value))
 
 # Endstop wrapper
 class AnalogProbeEndstopWrapper:
