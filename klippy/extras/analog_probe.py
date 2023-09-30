@@ -109,7 +109,11 @@ class AnalogProbeEndstopWrapper:
         pin_params = ppins.lookup_pin(pin, can_invert=False, can_pullup=False)
         mcu = pin_params['chip']
         self.mcu_endstop = mcu.setup_pin('adc', pin_params)
-        self.mcu_endstop.setup_minmax(self.min_adc, self.max_adc)
+
+        SAMPLE_TIME = 0.001
+        SAMPLE_COUNT = 8
+        self.mcu_endstop.setup_minmax(SAMPLE_TIME, SAMPLE_COUNT,
+            minval=self.min_adc, maxval=self.max_adc)
 
         #self.printer.register_event_handler('klippy:mcu_identify',
         #                                    self._handle_mcu_identify)
