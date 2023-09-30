@@ -194,8 +194,8 @@ class AnalogProbeEndstopWrapper:
         if toolhead.get_position()[:3] != start_pos[:3]:
             raise self.printer.command_error(
                 "Toolhead moved during probe deactivate_gcode script")
-    def get_position_endstop(self):
-        return self.position_endstop
+    #def get_position_endstop(self):
+    #    return self.position_endstop
 
 def load_config(config):
     ap=AnalogProbeEndstopWrapper(config)
