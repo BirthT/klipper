@@ -87,6 +87,8 @@ class AnalogProbe:
         gcmd.respond_info("analog probe: t=%f,  v=%f" % (get_time, get_value))
 
 # Endstop wrapper
+TRSYNC_TIMEOUT = 0.025
+TRSYNC_SINGLE_MCU_TIMEOUT = 0.250
 class AnalogProbeEndstopWrapper:
     def __init__(self, config):
         self.printer = config.get_printer()
@@ -112,6 +114,8 @@ class AnalogProbeEndstopWrapper:
         pin_params = ppins.lookup_pin(pin, can_invert=False, can_pullup=False)
         self.mcu = pin_params['chip']
         self.mcu_endstop = self.mcu.setup_pin('adc', pin_params)
+
+        self.oid = self.mcu.create_oid()
 
         ADC_SAMPLE_TIME = 0.001
         ADC_SAMPLE_COUNT = 8
@@ -164,10 +168,46 @@ class AnalogProbeEndstopWrapper:
                                      " multi-mcu shared axis")
     def get_steppers(self):
         return [s for trsync in self._trsyncs for s in trsync.get_steppers()]    
-    def home_start(self):
-        pass
-    def home_wait(self):
-        pass
+    def home_start(self, print_time, sample_time, sample_count, rest_time,
+                   triggered=True):
+        clock = self.mcu.print_time_to_clock(print_time)
+        rest_ticks = self.mcu.print_time_to_clock(print_time+rest_time) - clock
+        self._rest_ticks = rest_ticks
+        reactor = self.mcu.get_printer().get_reactor()
+        self._trigger_completion = reactor.completion()
+        expire_timeout = TRSYNC_TIMEOUT
+        if len(self._trsyncs) == 1:
+            expire_timeout = TRSYNC_SINGLE_MCU_TIMEOUT
+        for trsync in self._trsyncs:
+            trsync.start(print_time, self._trigger_completion, expire_timeout)
+        etrsync = self._trsyncs[0]
+        ffi_main, ffi_lib = chelper.get_ffi()
+        ffi_lib.trdispatch_start(self._trdispatch, etrsync.REASON_HOST_REQUEST)
+        self._home_cmd.send(
+            [self.oid, clock, self.mcu.seconds_to_clock(sample_time),
+             sample_count, rest_ticks, triggered,
+             etrsync.get_oid(), etrsync.REASON_ENDSTOP_HIT], reqclock=clock)
+        return self._trigger_completion
+    def home_wait(self, home_end_time):
+        etrsync = self._trsyncs[0]
+        etrsync.set_home_end_time(home_end_time)
+        if self.mcu.is_fileoutput():
+            self._trigger_completion.complete(True)
+        self._trigger_completion.wait()
+        self._home_cmd.send([self.oid, 0, 0, 0, 0, 0, 0, 0])
+        ffi_main, ffi_lib = chelper.get_ffi()
+        ffi_lib.trdispatch_stop(self._trdispatch)
+        res = [trsync.stop() for trsync in self._trsyncs]
+        if any([r == etrsync.REASON_COMMS_TIMEOUT for r in res]):
+            return -1.
+        if res[0] != etrsync.REASON_ENDSTOP_HIT:
+            return 0.
+        if self._mcu.is_fileoutput():
+            return home_end_time
+        params = self._query_cmd.send([self.oid])
+        next_clock = self.mcu.clock32_to_clock64(params['next_clock'])
+        return self.mcu.clock_to_print_time(next_clock - self._rest_ticks)
+
     def query_endstop(self, print_time):
         _res = self.adc_read()
         params = 0 #default open
