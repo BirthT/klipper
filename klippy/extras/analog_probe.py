@@ -124,7 +124,9 @@ class AnalogProbeEndstopWrapper:
         self.mcu_endstop.setup_minmax(ADC_SAMPLE_TIME, ADC_SAMPLE_COUNT)
         self.mcu_endstop.setup_adc_callback(ADC_REPORT_TIME, self.adc_callback)
 
-        self.real_trigger_val = int(self.endstop_trigger / self.mcu_endstop._inv_max_adc)
+        mcu_adc_max = self.mcu.get_constant_float("ADC_MAX")
+        max_adc = ADC_SAMPLE_COUNT * mcu_adc_max
+        self.real_trigger_val = int(self.endstop_trigger * max_adc)
 
         ffi_main, ffi_lib = chelper.get_ffi()
         self._trdispatch = ffi_main.gc(ffi_lib.trdispatch_alloc(), ffi_lib.free)
