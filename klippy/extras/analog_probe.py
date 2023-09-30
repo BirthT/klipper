@@ -110,8 +110,8 @@ class AnalogProbeEndstopWrapper:
         ppins = self.printer.lookup_object('pins')
         pin = config.get('pin')
         pin_params = ppins.lookup_pin(pin, can_invert=False, can_pullup=False)
-        mcu = pin_params['chip']
-        self.mcu_endstop = mcu.setup_pin('adc', pin_params)
+        self.mcu = pin_params['chip']
+        self.mcu_endstop = self.mcu.setup_pin('adc', pin_params)
 
         ADC_SAMPLE_TIME = 0.001
         ADC_SAMPLE_COUNT = 8
@@ -121,7 +121,7 @@ class AnalogProbeEndstopWrapper:
 
         ffi_main, ffi_lib = chelper.get_ffi()
         self._trdispatch = ffi_main.gc(ffi_lib.trdispatch_alloc(), ffi_lib.free)
-        self._trsyncs = [MCU_trsync(mcu, self._trdispatch)]
+        self._trsyncs = [MCU_trsync(self.mcu, self._trdispatch)]
 
         self.printer.register_event_handler('klippy:mcu_identify',
                                             self._handle_mcu_identify)
