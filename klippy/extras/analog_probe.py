@@ -108,6 +108,7 @@ class AnalogProbeEndstopWrapper:
                                         above=self.min_adc)
         self.endstop_trigger = config.getfloat('endstop_trigger', 0.5)
 
+
         # endstop用のADCを定義する
         ppins = self.printer.lookup_object('pins')
         pin = config.get('pin')
@@ -123,12 +124,22 @@ class AnalogProbeEndstopWrapper:
         self.mcu_endstop.setup_minmax(ADC_SAMPLE_TIME, ADC_SAMPLE_COUNT)
         self.mcu_endstop.setup_adc_callback(ADC_REPORT_TIME, self.adc_callback)
 
+        self.real_trigger_val = int(self.endstop_trigger / self.mcu_endstop._inv_max_adc)
+
         ffi_main, ffi_lib = chelper.get_ffi()
         self._trdispatch = ffi_main.gc(ffi_lib.trdispatch_alloc(), ffi_lib.free)
         self._trsyncs = [MCU_trsync(self.mcu, self._trdispatch)]
 
         self.printer.register_event_handler('klippy:mcu_identify',
                                             self._handle_mcu_identify)
+
+        cmd_queue = self._trsyncs[0].get_command_queue()
+        self._home_cmd = self.mcu.lookup_command(
+            "analog_endstop_home oid=%c clock=%u sample_ticks=%u sample_count=%c"
+            " rest_ticks=%u pin_value=%c trsync_oid=%c trigger_reason=%c tirgger_val=%u",
+            cq=cmd_queue)
+
+
         # Wrappers
         #self.get_mcu = self.mcu_endstop.get_mcu
         #self.add_stepper = self.mcu_endstop.add_stepper
@@ -185,8 +196,8 @@ class AnalogProbeEndstopWrapper:
         ffi_lib.trdispatch_start(self._trdispatch, etrsync.REASON_HOST_REQUEST)
         self._home_cmd.send(
             [self.oid, clock, self.mcu.seconds_to_clock(sample_time),
-             sample_count, rest_ticks, triggered,
-             etrsync.get_oid(), etrsync.REASON_ENDSTOP_HIT], reqclock=clock)
+             sample_count, rest_ticks, triggered, 
+             etrsync.get_oid(), etrsync.REASON_ENDSTOP_HIT, self.real_trigger_val], reqclock=clock)
         return self._trigger_completion
     def home_wait(self, home_end_time):
         etrsync = self._trsyncs[0]
@@ -194,7 +205,7 @@ class AnalogProbeEndstopWrapper:
         if self.mcu.is_fileoutput():
             self._trigger_completion.complete(True)
         self._trigger_completion.wait()
-        self._home_cmd.send([self.oid, 0, 0, 0, 0, 0, 0, 0])
+        self._home_cmd.send([self.oid, 0, 0, 0, 0, 0, 0, 0, 0])
         ffi_main, ffi_lib = chelper.get_ffi()
         ffi_lib.trdispatch_stop(self._trdispatch)
         res = [trsync.stop() for trsync in self._trsyncs]
@@ -202,11 +213,22 @@ class AnalogProbeEndstopWrapper:
             return -1.
         if res[0] != etrsync.REASON_ENDSTOP_HIT:
             return 0.
-        if self._mcu.is_fileoutput():
+        if self.mcu.is_fileoutput():
             return home_end_time
-        params = self._query_cmd.send([self.oid])
-        next_clock = self.mcu.clock32_to_clock64(params['next_clock'])
-        return self.mcu.clock_to_print_time(next_clock - self._rest_ticks)
+        
+        return home_end_time
+        #ffi_main, ffi_lib = chelper.get_ffi()
+        #ffi_lib.trdispatch_stop(self._trdispatch)
+        #res = [trsync.stop() for trsync in self._trsyncs]
+        #if any([r == etrsync.REASON_COMMS_TIMEOUT for r in res]):
+        #    return -1.
+        #if res[0] != etrsync.REASON_ENDSTOP_HIT:
+        #    return 0.
+        #if self._mcu.is_fileoutput():
+        #    return home_end_time
+        #params = self._query_cmd.send([self.oid])
+        #next_clock = self.mcu.clock32_to_clock64(params['next_clock'])
+        #return self.mcu.clock_to_print_time(next_clock - self._rest_ticks)
 
     def query_endstop(self, print_time):
         _res = self.adc_read()
