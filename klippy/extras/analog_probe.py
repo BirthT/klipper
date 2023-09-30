@@ -169,10 +169,10 @@ class AnalogProbeEndstopWrapper:
     def home_wait(self):
         pass
     def query_endstop(self, print_time):
-        read_val = self.read_val()
+        #read_val = self.read_val()
         params = 0 #default open
-        if  read_val < self.endstop_trigger: #trigered
-           params=1
+        #if  read_val < self.endstop_trigger: #trigered
+        #   params=1
         return params
 
     def _handle_mcu_identify(self):
