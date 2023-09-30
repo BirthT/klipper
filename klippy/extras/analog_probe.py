@@ -102,7 +102,7 @@ class AnalogProbeEndstopWrapper:
         self.min_adc = config.getfloat('min_adc', -9999999.9,
                                         minval=-9999999.9)
         self.max_adc = config.getfloat('max_adc', 99999999.9,
-                                        above=self.min_temp)
+                                        above=self.min_adc)
 
         # endstop用のADCを定義する
         ppins = self.printer.lookup_object('pins')
