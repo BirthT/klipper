@@ -112,7 +112,7 @@ class AnalogProbeEndstopWrapper:
 
         ADC_SAMPLE_TIME = 0.001
         ADC_SAMPLE_COUNT = 8
-        ADC_REPORT_TIME = 0.500
+        ADC_REPORT_TIME = 0.01
         self.mcu_endstop.setup_minmax(ADC_SAMPLE_TIME, ADC_SAMPLE_COUNT)
         self.mcu_endstop.setup_adc_callback(ADC_REPORT_TIME, self.adc_callback)
 
