@@ -51,6 +51,8 @@ analog_in_event(struct timer *timer)
         return SF_RESCHEDULE;
     }
     uint16_t value = gpio_adc_read(a->pin);
+    AES_Data = value;
+
     uint8_t state = a->state;
     if (state >= a->sample_count) {
         state = 0;
@@ -130,7 +132,6 @@ analog_in_task(void)
         }
 
         uint16_t value = a->value;
-        AES_Data = a->value;
 
         uint32_t next_begin_time = a->next_begin_time;
         a->state++;
@@ -164,7 +165,7 @@ static uint_fast8_t
 endstop_event(struct timer *t)
 {
  //   struct endstop *e = container_of(t, struct endstop, time);
-    uint8_t val = AES_Data <= e.trigger_val?0:1;
+    uint8_t val = (AES_Data <= e.trigger_val) ?1:0;
     uint32_t nextwake = e.time.waketime + e.rest_time;
     if ((val ? ~e.flags : e.flags) & ESF_PIN_HIGH) {
         // No match - reschedule for the next attempt
@@ -181,7 +182,7 @@ static uint_fast8_t
 endstop_oversample_event(struct timer *t)
 {
    // struct endstop *e = container_of(t, struct endstop, time);
-    uint8_t val = AES_Data <= e.trigger_val?0:1;
+    uint8_t val = (AES_Data <= e.trigger_val) ?1:0;
     
     if ((val ? ~e.flags : e.flags) & ESF_PIN_HIGH) {
         // No longer matching - reschedule for the next attempt
@@ -223,9 +224,9 @@ command_analog_endstop_home(uint32_t *args)
     e.flags = ESF_HOMING | (args[5] ? ESF_PIN_HIGH : 0);
     e.ts = trsync_oid_lookup(args[6]);
     e.trigger_reason = args[7];
-    e.trigger_val = args[8]
+    e.trigger_val = args[8];
     sched_add_timer(&e.time);
 }
 DECL_COMMAND(command_analog_endstop_home,
              "analog_endstop_home oid=%c clock=%u sample_ticks=%u sample_count=%c"
-             " rest_ticks=%u pin_value=%c trsync_oid=%c trigger_reason=%c tirgger_val=%u");
+             " rest_ticks=%u pin_value=%c trsync_oid=%c trigger_reason=%c trigger_val=%u");
