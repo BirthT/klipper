@@ -27,16 +27,16 @@ class AnalogProbe:
         self.printer.lookup_object('pins').register_chip('analog_probe', self)
 
         # Register homing event handlers
-        self.printer.register_event_handler("homing:homing_move_begin",
-                                            self._handle_homing_move_begin)
-        self.printer.register_event_handler("homing:homing_move_end",
-                                            self._handle_homing_move_end)
-        self.printer.register_event_handler("homing:home_rails_begin",
-                                            self._handle_home_rails_begin)
-        self.printer.register_event_handler("homing:home_rails_end",
-                                            self._handle_home_rails_end)
-        self.printer.register_event_handler("gcode:command_error",
-                                            self._handle_command_error)
+        #self.printer.register_event_handler("homing:homing_move_begin",
+        #                                    self._handle_homing_move_begin)
+        #self.printer.register_event_handler("homing:homing_move_end",
+        #                                    self._handle_homing_move_end)
+        #self.printer.register_event_handler("homing:home_rails_begin",
+        #                                    self._handle_home_rails_begin)
+        #self.printer.register_event_handler("homing:home_rails_end",
+        #                                    self._handle_home_rails_end)
+        #self.printer.register_event_handler("gcode:command_error",
+        #                                    self._handle_command_error)
         # Register PROBE/QUERY_PROBE commands
         self.gcode = self.printer.lookup_object('gcode')
         #self.gcode.register_command('PROBE', self.cmd_PROBE,
@@ -52,12 +52,12 @@ class AnalogProbe:
         #                            desc=self.cmd_Z_OFFSET_APPLY_PROBE_help)
         self.gcode.register_command('QUERY_ANALOG_PROBE', self.cmd_QUERY_ANALOG_PROBE,
                                     desc=self.cmd_QUERY_ANALOG_PROBE_help)
-    def _handle_homing_move_begin(self, hmove):
-        if self.mcu_probe in hmove.get_mcu_endstops():
-            self.mcu_probe.probe_prepare(hmove)
-    def _handle_homing_move_end(self, hmove):
-        if self.mcu_probe in hmove.get_mcu_endstops():
-            self.mcu_probe.probe_finish(hmove)
+    #def _handle_homing_move_begin(self, hmove):
+    #    if self.mcu_probe in hmove.get_mcu_endstops():
+    #        self.mcu_probe.probe_prepare(hmove)
+    #def _handle_homing_move_end(self, hmove):
+    #    if self.mcu_probe in hmove.get_mcu_endstops():
+    #        self.mcu_probe.probe_finish(hmove)
     def setup_pin(self, pin_type, pin_params):
         if pin_type != 'endstop':
             raise pins.error("Probe virtual endstop only useful as endstop pin")
