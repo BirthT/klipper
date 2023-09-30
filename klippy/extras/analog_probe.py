@@ -115,12 +115,12 @@ class AnalogProbeEndstopWrapper:
         self.printer.register_event_handler('klippy:mcu_identify',
                                             self._handle_mcu_identify)
         # Wrappers
-        self.get_mcu = self.mcu_endstop.get_mcu
-        self.add_stepper = self.mcu_endstop.add_stepper
-        self.get_steppers = self.mcu_endstop.get_steppers
-        self.home_start = self.mcu_endstop.home_start
-        self.home_wait = self.mcu_endstop.home_wait
-        self.query_endstop = self.mcu_endstop.query_endstop
+        #self.get_mcu = self.mcu_endstop.get_mcu
+        #self.add_stepper = self.mcu_endstop.add_stepper
+        #self.get_steppers = self.mcu_endstop.get_steppers
+        #self.home_start = self.mcu_endstop.home_start
+        #self.home_wait = self.mcu_endstop.home_wait
+        #self.query_endstop = self.mcu_endstop.query_endstop
     
     def get_value(self):
         return self.mcu_endstop.get_last_value()
