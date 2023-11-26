@@ -14,7 +14,8 @@ class HybridCoreXYKinematics:
         printer_config = config.getsection('printer')
         self.inverted = False
         if config.has_section('hybrid_corexy'):
-            self.inverted = printer_config.getboolean('inverted', False)
+            hc_config = config.getsection('dual_carriage')
+            self.inverted = hc_config.getboolean('inverted', False)
         # itersolve parameters
         self.rails = [ stepper.PrinterRail(config.getsection('stepper_x')),
                        stepper.LookupMultiRail(config.getsection('stepper_y')),
